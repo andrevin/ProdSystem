@@ -19,8 +19,57 @@ const MACHINE_PASSCODE = "1234";
 
 export default function OperatorView() {
   const { data: user } = useUser();
-  const { isConnected } = useWebSocket(user || null);
+  const { isConnected, sendMessage, subscribe } = useWebSocket(user || null);
   const [configuredMachine, setConfiguredMachine] = useState<number | null>(null);
+
+  // Join machine room when machine is configured
+  useEffect(() => {
+    if (isConnected && configuredMachine && sendMessage) {
+      console.log(`[Operator] Joining machine room ${configuredMachine}`);
+      sendMessage({
+        type: "join_machine",
+        machineId: configuredMachine
+      });
+
+      // Leave room when component unmounts or machine changes
+      return () => {
+        sendMessage({
+          type: "leave_machine",
+          machineId: configuredMachine
+        });
+      };
+    }
+  }, [isConnected, configuredMachine, sendMessage]);
+
+  // Subscribe to machine status changes for the configured machine
+  useEffect(() => {
+    if (!subscribe || !configuredMachine) return;
+
+    const unsubscribe = subscribe("machine_status_changed", (message) => {
+      if (message.machineId === configuredMachine) {
+        console.log(`[Operator] Machine ${configuredMachine} status changed:`, message.data);
+        // Query invalidation already handled by handleWebSocketMessage
+        // This subscription is for UI-specific reactions (optional)
+      }
+    });
+
+    return unsubscribe;
+  }, [subscribe, configuredMachine]);
+
+  // Subscribe to ticket closed events (for automatic unlock)
+  useEffect(() => {
+    if (!subscribe || !configuredMachine) return;
+
+    const unsubscribe = subscribe("ticket_closed", (message) => {
+      if (message.machineId === configuredMachine) {
+        console.log(`[Operator] Ticket closed for machine ${configuredMachine}, machine unlocked`);
+        // Query invalidation already handled by handleWebSocketMessage
+        // Machine will automatically show as unblocked via query refetch
+      }
+    });
+
+    return unsubscribe;
+  }, [subscribe, configuredMachine]);
   const [showConfigDialog, setShowConfigDialog] = useState(false);
   const [passcode, setPasscode] = useState("");
   const [passcodeError, setPasscodeError] = useState(false);

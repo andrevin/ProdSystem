@@ -15,6 +15,14 @@ import {
   insertProductionBatchSchema,
   type User
 } from "@shared/schema";
+import {
+  broadcastMachineStatusChange,
+  broadcastTicketCreated,
+  broadcastTicketClosed,
+  broadcastBatchStarted,
+  broadcastBatchFinished,
+  broadcastMachineStopped
+} from "./websocket";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication endpoints
@@ -619,6 +627,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!record) {
         return res.status(404).json({ error: "Ticket not found" });
       }
+      
+      // Broadcast ticket closure (triggers machine unlock)
+      broadcastTicketClosed(record.id, record.machineId, record);
+      
       res.json(record);
     } catch (error) {
       res.status(500).json({ error: "Failed to close ticket" });
