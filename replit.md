@@ -4,11 +4,17 @@
 
 This is an industrial production downtime management system designed for both tablet and web interfaces. The application serves three primary user roles:
 
-1. **Operators** - Use tablet interface to instantly log production stoppages with a single tap
+1. **Operators** - Use tablet interface to manage production batches and log stoppages
 2. **Maintenance Technicians** - Manage maintenance tickets created from equipment failures
 3. **Administrators** - Configure machines, products, stoppage causes, and technicians
 
-The system automatically creates maintenance tickets when operators report specific types of stoppages (configured as requiring maintenance), enabling efficient tracking of the complete lifecycle from incident report to resolution.
+**Production Batch Workflow (Operators)**:
+- Start batch: Select product and planned quantity
+- Active batch: Monitor production, record stoppages, view batch info
+- Finish batch: Enter actual quantity produced
+- Machine blocking: When maintenance required, operators see "MÁQUINA BLOQUEADA" and cannot resume production until maintenance completes
+
+The system automatically creates maintenance tickets when operators report specific types of stoppages (configured as requiring maintenance), and automatically blocks machines until maintenance is completed.
 
 ## User Preferences
 
@@ -22,7 +28,8 @@ Preferred communication style: Simple, everyday language.
 
 **Routing**: Wouter (lightweight client-side routing)
 - Three main routes: `/` (Operator), `/maintenance`, `/admin`
-- **IN DEVELOPMENT**: Authentication with Passport.js, role-based access control
+- Authentication with Passport.js, role-based access control (IMPLEMENTED)
+- Login page with protected routes by user role
 
 **UI Component System**: shadcn/ui (Radix UI primitives + Tailwind CSS)
 - Design system follows Material Design 3 principles for industrial environments
@@ -49,9 +56,15 @@ Preferred communication style: Simple, everyday language.
 **API Pattern**: RESTful HTTP endpoints
 - CRUD operations for: machines, products, stoppage causes, technicians, users, diagnostics
 - Specialized endpoints for downtime records and maintenance ticket workflows
-- Production batch management
-- Audit logging for critical operations
-- **IN DEVELOPMENT**: Authentication middleware with Passport.js
+- Production batch management (IMPLEMENTED):
+  - GET /api/batches - List all batches
+  - GET /api/batches/:id - Get batch details
+  - GET /api/machines/:machineId/active-batch - Get active batch for machine
+  - POST /api/batches - Create new batch
+  - PATCH /api/batches/:id - Update batch
+  - POST /api/batches/:id/finish - Finish batch with actual quantity
+- Audit logging for critical operations (schema ready, implementation pending)
+- Authentication middleware with Passport.js (IMPLEMENTED)
 
 **Database ORM**: Drizzle ORM
 - Type-safe query builder
@@ -63,7 +76,9 @@ Preferred communication style: Simple, everyday language.
 - Centralized in `shared/schema.ts` for consistency
 
 **Session Management**: PostgreSQL session store (connect-pg-simple)
-- Sessions persisted in database (though authentication not yet implemented)
+- Sessions persisted in database
+- Passport.js local strategy for authentication
+- Bcrypt password hashing
 
 ### Data Storage
 
@@ -84,12 +99,27 @@ Preferred communication style: Simple, everyday language.
 
 **Key Schema Features**:
 - `users.role` determines access permissions and workflow capabilities
-- `machines.operationalStatus` enables automatic blocking when maintenance required
-- `production_batches` track complete lot lifecycle from start to completion
+- `machines.operationalStatus` enables automatic blocking when maintenance required (Operativa/Bloqueada)
+- `production_batches` track complete lot lifecycle: 
+  - Status: "En Curso" → "Completado"
+  - Tracks plannedQuantity vs actualQuantity for efficiency calculation
+  - Associates with operator user ID
+  - Business rule: Only one active batch per machine at a time
 - `downtime_records` now includes: batch association, priority levels, assignment tracking (separate from acceptance), photo evidence, diagnostic classification
-- `audit_logs` capture all critical actions with user context and JSON details
+- `audit_logs` capture all critical actions with user context and JSON details (schema ready, implementation pending)
 - Enhanced maintenance workflow: Abierta (Sin Asignar) → Asignada (by chief) → En Progreso (accepted by tech) → Cerrada (with photo + diagnostic)
 - All relations defined with Drizzle ORM relations for type-safe joins
+
+**Operator Interface (client/src/pages/operator-view.tsx)**:
+- Machine configuration with passcode protection (passcode: "1234")
+- **No Active Batch State**: Large "INICIAR LOTE" button to start new batch
+- **Active Batch State**: 
+  - Displays batch info (product, planned quantity, elapsed time, batch ID)
+  - Grid of stoppage cause buttons (colored, touch-optimized)
+  - "FINALIZAR LOTE" button to complete batch with actual quantity
+- **Machine Blocked State**: Shows "MÁQUINA BLOQUEADA POR MANTENIMIENTO" message when machine.operationalStatus === "Bloqueada"
+- Stoppage recording associates downtime with current active batch
+- Success overlays with green checkmarks for user feedback
 
 ### External Dependencies
 
