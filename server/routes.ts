@@ -653,7 +653,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Push Notifications endpoints  
+  // Push Notifications endpoints
+  app.post("/api/push/subscribe", requireAuth, async (req, res) => {
+    try {
+      const { endpoint, keys } = req.body;
+      const userId = (req.user as User).id;
+      
+      const subscription = await storage.createPushSubscription({
+        userId,
+        endpoint,
+        keys: {
+          p256dh: keys.p256dh,
+          auth: keys.auth
+        }
+      });
+      
+      res.json({ success: true, subscription });
+    } catch (error) {
+      console.error('[Push] Subscribe error:', error);
+      res.status(500).json({ error: "Failed to subscribe to push notifications" });
+    }
+  });
+  
   app.get("/api/push/vapid-public-key", (req, res) => {
     res.json({ publicKey: "BGlqn_3z5u5YZ0x3pMqH2S1WZJvDvr7wY-hH0LF6nKYqMN7wKxVzY8fVZ0Y6qRF3_2Y5Q0X8F9K7L6M5N4P3Q2R1" });
   });

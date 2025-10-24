@@ -9,6 +9,7 @@ import {
   failureDiagnostics,
   productionBatches,
   auditLogs,
+  pushSubscriptions,
   type Machine, 
   type Product, 
   type StoppageCause, 
@@ -19,6 +20,7 @@ import {
   type FailureDiagnostic,
   type ProductionBatch,
   type AuditLog,
+  type PushSubscription,
   type InsertMachine, 
   type InsertProduct, 
   type InsertStoppageCause, 
@@ -27,7 +29,8 @@ import {
   type InsertUser,
   type InsertFailureDiagnostic,
   type InsertProductionBatch,
-  type InsertAuditLog
+  type InsertAuditLog,
+  type InsertPushSubscription
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or } from "drizzle-orm";
@@ -99,6 +102,13 @@ export interface IStorage {
 
   // Audit Logs
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
+
+  // Push Subscriptions
+  getPushSubscriptionsByUser(userId: number): Promise<PushSubscription[]>;
+  createPushSubscription(subscription: InsertPushSubscription): Promise<PushSubscription>;
+  deletePushSubscription(id: number): Promise<void>;
+  deletePushSubscriptionByEndpoint(endpoint: string): Promise<void>;
+  getUsersByRole(role: string): Promise<User[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -503,6 +513,32 @@ export class DatabaseStorage implements IStorage {
   async createAuditLog(insertLog: InsertAuditLog): Promise<AuditLog> {
     const [log] = await db.insert(auditLogs).values(insertLog).returning();
     return log;
+  }
+
+  // Push Subscriptions
+  async getPushSubscriptionsByUser(userId: number): Promise<PushSubscription[]> {
+    return await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, userId));
+  }
+
+  async createPushSubscription(insertSubscription: InsertPushSubscription): Promise<PushSubscription> {
+    // First try to delete existing subscription with same endpoint
+    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, insertSubscription.endpoint));
+    
+    // Then create new subscription
+    const [subscription] = await db.insert(pushSubscriptions).values(insertSubscription).returning();
+    return subscription;
+  }
+
+  async deletePushSubscription(id: number): Promise<void> {
+    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, id));
+  }
+
+  async deletePushSubscriptionByEndpoint(endpoint: string): Promise<void> {
+    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint));
+  }
+
+  async getUsersByRole(role: string): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.role, role));
   }
 }
 
