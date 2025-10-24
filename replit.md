@@ -123,10 +123,14 @@ Preferred communication style: Simple, everyday language.
 
 **Framework**: Express.js with TypeScript
 
-**Real-Time Server**: WebSocket server (ws)
-- Broadcasts state changes to all connected clients
-- Room-based broadcasting (by machine, by user role)
-- Connection management and authentication
+**Real-Time Server**: WebSocket server (ws) - **IMPLEMENTED**
+- **Secure Authentication**: Express session + Passport integration (passport.initialize + passport.session)
+- **Origin Validation**: Prevents cross-origin WebSocket hijacking with origin header checking
+- **Room-based Broadcasting**: Three channel types - user-specific (userId), role-based (role), machine-specific (machineId)
+- **8 Broadcast Events**: machine_status_changed, ticket_created/assigned/accepted/closed, batch_started/finished, machine_stopped
+- **Heartbeat**: 30-second ping-pong to detect and cleanup broken connections
+- **Session Management**: Uses shared sessionMiddleware from server/session.ts
+- **Client Integration**: useWebSocket hook in client/src/lib/websocket.ts for React components
 
 **API Pattern**: RESTful HTTP endpoints + WebSocket events
 - CRUD operations for: machines, products, stoppage causes, technicians, users, diagnostics, machine documents

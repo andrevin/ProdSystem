@@ -1,12 +1,11 @@
 import express, { type Request, Response, NextFunction } from "express";
-import session from "express-session";
-import connectPgSimple from "connect-pg-simple";
 import passport from "passport";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { pool } from "./db";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
+import { setupWebSocket } from "./websocket";
+import { sessionMiddleware } from "./session";
 
 const app = express();
 
@@ -16,24 +15,8 @@ declare module 'http' {
   }
 }
 
-// Express session configuration
-const PgSession = connectPgSimple(session);
-app.use(session({
-  store: new PgSession({
-    pool: pool,
-    tableName: 'session',
-    createTableIfMissing: true,
-  }),
-  secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-  },
-}));
+// Apply session middleware
+app.use(sessionMiddleware);
 
 // Initialize Passport
 app.use(passport.initialize());
@@ -81,6 +64,9 @@ app.use((req, res, next) => {
   setupAuth(storage);
 
   const server = await registerRoutes(app);
+
+  // Setup WebSocket server
+  setupWebSocket(server);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

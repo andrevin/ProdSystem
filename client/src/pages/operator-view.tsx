@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Settings, Check, AlertCircle, PlayCircle, StopCircle, PackageCheck, Lock } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useUser } from "@/hooks/use-user";
+import { useWebSocket } from "@/lib/websocket";
 import type { Machine, Product, StoppageCause, ProductionBatch } from "@shared/schema";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
@@ -18,6 +19,15 @@ const MACHINE_PASSCODE = "1234";
 
 export default function OperatorView() {
   const { data: user } = useUser();
+  const { isConnected, lastMessage } = useWebSocket(user || null);
+
+  // Log WebSocket connection status for testing
+  useEffect(() => {
+    console.log("[Operator View] WebSocket connected:", isConnected);
+    if (lastMessage) {
+      console.log("[Operator View] Last message:", lastMessage);
+    }
+  }, [isConnected, lastMessage]);
   const [configuredMachine, setConfiguredMachine] = useState<number | null>(null);
   const [showConfigDialog, setShowConfigDialog] = useState(false);
   const [passcode, setPasscode] = useState("");
