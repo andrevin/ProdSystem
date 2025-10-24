@@ -24,6 +24,7 @@ export const machines = pgTable("machines", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   name: text("name").notNull().unique(),
   description: text("description"),
+  section: varchar("section", { length: 100 }), // Section/Area of the plant
   operationalStatus: text("operational_status").notNull().default("Operativa"), // 'Operativa', 'Bloqueada'
 });
 
@@ -35,6 +36,7 @@ export type Machine = typeof machines.$inferSelect;
 export const products = pgTable("products", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   name: text("name").notNull().unique(),
+  sku: varchar("sku", { length: 50 }).notNull().unique(), // Product SKU
   description: text("description"),
 });
 
@@ -115,7 +117,7 @@ export const downtimeRecords = pgTable("downtime_records", {
   timestampAccepted: timestamp("timestamp_accepted", { withTimezone: true }), // When technician accepted
   timestampClosed: timestamp("timestamp_closed", { withTimezone: true }),
   maintenanceNotes: text("maintenance_notes"),
-  closurePhotoUrl: text("closure_photo_url"), // Path to uploaded photo
+  photoUrl: text("photo_url"), // Photo evidence for ticket closure
   diagnosticId: integer("diagnostic_id").references(() => failureDiagnostics.id),
 });
 
@@ -146,17 +148,54 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type AuditLog = typeof auditLogs.$inferSelect;
 
+// Machine documents table - Library of documents per machine
+export const machineDocuments = pgTable("machine_documents", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  machineId: integer("machine_id").notNull().references(() => machines.id, { onDelete: "cascade" }),
+  category: varchar("category", { length: 100 }).notNull(), // e.g., "Manual Eléctrico", "Procedimiento de Seguridad"
+  filename: text("filename").notNull(), // Original filename
+  filePath: text("file_path").notNull(), // Path to file in storage
+  uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertMachineDocumentSchema = createInsertSchema(machineDocuments).omit({ 
+  id: true,
+  uploadedAt: true,
+});
+
+export type InsertMachineDocument = z.infer<typeof insertMachineDocumentSchema>;
+export type MachineDocument = typeof machineDocuments.$inferSelect;
+
+// Push subscriptions table - For push notifications
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  endpoint: text("endpoint").notNull().unique(),
+  keys: jsonb("keys").notNull(), // { p256dh: string, auth: string }
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({ 
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   operatedBatches: many(productionBatches),
   assignedTickets: many(downtimeRecords, { relationName: "assignedTo" }),
   assignedByTickets: many(downtimeRecords, { relationName: "assignedBy" }),
   auditLogs: many(auditLogs),
+  pushSubscriptions: many(pushSubscriptions),
 }));
 
 export const machinesRelations = relations(machines, ({ many }) => ({
   downtimeRecords: many(downtimeRecords),
   productionBatches: many(productionBatches),
+  documents: many(machineDocuments),
 }));
 
 export const productsRelations = relations(products, ({ many }) => ({
@@ -227,6 +266,20 @@ export const downtimeRecordsRelations = relations(downtimeRecords, ({ one }) => 
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   user: one(users, {
     fields: [auditLogs.userId],
+    references: [users.id],
+  }),
+}));
+
+export const machineDocumentsRelations = relations(machineDocuments, ({ one }) => ({
+  machine: one(machines, {
+    fields: [machineDocuments.machineId],
+    references: [machines.id],
+  }),
+}));
+
+export const pushSubscriptionsRelations = relations(pushSubscriptions, ({ one }) => ({
+  user: one(users, {
+    fields: [pushSubscriptions.userId],
     references: [users.id],
   }),
 }));
