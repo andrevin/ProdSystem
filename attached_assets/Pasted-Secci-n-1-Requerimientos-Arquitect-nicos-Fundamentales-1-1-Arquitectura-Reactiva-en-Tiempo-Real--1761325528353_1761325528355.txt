@@ -1,0 +1,47 @@
+Sección 1: Requerimientos Arquitectónicos Fundamentales
+1.1. Arquitectura Reactiva en Tiempo Real (Requerimiento Principal):
+La aplicación debe ser una Single-Page Application (SPA) que gestione su estado de forma centralizada.
+Cero Refrescos: Todas las actualizaciones (creación de tickets, cambios de estado, asignaciones, desbloqueos) deben reflejarse instantáneamente en las pantallas de todos los usuarios relevantes sin que nadie tenga que refrescar su navegador.
+Tecnología: Se debe implementar una comunicación bidireccional o en tiempo real entre el cliente y el servidor (ej. WebSockets, Server-Sent Events) para empujar las actualizaciones de estado a los clientes de forma proactiva.
+1.2. Progressive Web App (PWA):
+Instalable: La aplicación debe ser instalable en la pantalla de inicio (iOS/Android) con un manifest.json, ícono y splash screen.
+Capacidad Offline (Offline-First): La interfaz del operador debe permitir registrar paradas sin conexión. Las acciones se guardan localmente (usando Service Workers) y se sincronizan automáticamente al recuperar la red.
+1.3. Notificaciones Push Nativas (Push API):
+Para Jefes de Mantenimiento: Notificación push inmediata cuando se crea un nuevo ticket con estado "Abierta (Sin Asignar)".
+Para Técnicos de Mantenimiento: Notificación push general cuando se crea un nuevo ticket, y una notificación push específica y directa cuando un jefe les asigna un ticket.
+Para Supervisores: Notificación push inmediata cada vez que una máquina registra una parada (tanto operativa como por avería), informando qué máquina se ha detenido.
+Sección 2: Interfaz del Operador (Reactiva y Optimizada para Tablet)
+2.1. Inicio de Lote:
+Al iniciar, el operador busca el producto en un campo de búsqueda que filtra por Nombre y SKU. Los resultados de la búsqueda deben mostrar ambos campos para una fácil identificación.
+2.2. Gestión de Paradas (Actualización Instantánea):
+CASO 1 (Parada Operativa): Al presionar el botón, la pantalla cambia instantáneamente a un estado de alerta visual con el botón "REANUDAR PRODUCCIÓN".
+CASO 2 (Parada por Avería): Al presionar el botón de una falla que requiere mantenimiento, la interfaz debe bloquearse de forma inmediata y automática. El estado de bloqueo no puede depender de un refresco de página; debe ser una transición de estado reactiva dentro de la aplicación.
+Sección 3: Interfaz de Mantenimiento (Web/Tablet)
+3.1. Dashboard de Órdenes de Trabajo:
+El dashboard es un tablero en vivo. Las nuevas órdenes de trabajo, asignaciones y cambios de estado deben aparecer, desaparecer o moverse entre columnas automáticamente sin interacción del usuario.
+3.2. Vista Detallada del Ticket y Acceso a Documentación:
+A) Información de la Orden de Trabajo: Datos y historial del ticket.
+B) Biblioteca de Documentos de la Máquina (Acceso Directo): Sección visible dentro de la vista del ticket que lista todos los manuales y planos de la máquina, con botones para "Ver/Descargar".
+3.3. Flujo de Trabajo Dual para Tickets de Mantenimiento:
+Un ticket en estado "Abierta (Sin Asignar)" puede ser procesado de dos maneras:
+Flujo A - Asignación por Jefe (Push):
+Un Jefe de Mantenimiento ve el ticket y presiona "Asignar".
+Selecciona un técnico de una lista.
+El ticket se asigna y cambia de estado, notificando al técnico.
+Flujo B - Auto-Asignación por Técnico (Pull):
+Un Técnico de Mantenimiento ve el ticket "Abierta (Sin Asignar)" en el dashboard.
+El técnico presiona un botón "Tomar Ticket" o "Reclamar".
+El ticket se le auto-asigna, el estado cambia a "Asignado" y el botón "Tomar Ticket" desaparece para los demás técnicos.
+3.4. Cierre y Desbloqueo (Proceso Reactivo):
+Cierre (Técnico Asignado): El técnico rellena el formulario de cierre, que obliga a adjuntar una Foto de Respaldo y seleccionar un Diagnóstico de Falla.
+Desbloqueo Automático e Instantáneo: En el momento exacto en que el técnico confirma el cierre del ticket, el sistema debe:
+Actualizar el estado del ticket a "Cerrada".
+Enviar una señal en tiempo real a la interfaz del operador de la máquina afectada.
+La interfaz de la tablet debe desbloquearse automáticamente, cambiando de la pantalla roja de "BLOQUEADA" a la pantalla de "Producción en Curso" o "Parada Operativa", lista para que el operador presione "Reanudar".
+Sección 4: Panel de Administración (Acceso Web)
+4.1. Gestión de Entidades:
+Configuración Detallada de Máquinas: El formulario para crear/editar una máquina debe incluir campos para:
+Nombre de la Máquina.
+Sección/Área de la Planta.
+Un área para cargar múltiples documentos, donde para cada archivo se pueda especificar una categoría (ej. "Manual Eléctrico", "Procedimiento de Seguridad").
+Gestión de Productos: Cada producto debe tener los campos Nombre y SKU.
