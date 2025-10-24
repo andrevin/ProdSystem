@@ -1,0 +1,55 @@
+Necesito una aplicación para tablet y web llamada "Gestión de Paradas de Producción". El propósito es doble:
+Permitir a los operadores registrar paradas de producción de forma instantánea con un solo clic.
+Gestionar el ciclo de vida completo de las paradas por avería, desde su reporte hasta su cierre por parte del equipo de mantenimiento.
+Flujos de Usuario y Características Principales:
+1. Interfaz del Operador (Optimizada para Tablet):
+Diseño y Usabilidad: La interfaz debe ser extremadamente simple, con botones grandes, de alto contraste y sin campos de texto innecesarios. El objetivo es un registro en menos de 5 segundos.
+Configuración Persistente: Al iniciar la app en una tablet, un supervisor configura la máquina para esa estación. La app recordará esta máquina en todos los inicios posteriores. Un menú protegido permitirá cambiarla si es necesario.
+Información de Producción: El operador podrá seleccionar el "Producto en Producción" y la "Cantidad a Producir" de una lista predefinida.
+Botones de Causa de Parada: Una cuadrícula de botones grandes y personalizables representará las causas de parada (ej. "Falta de Material", "Cambio de Herramienta", "Falla Mecánica", "Falla Eléctrica").
+Flujo de Registro:
+El operador presiona el botón correspondiente a la causa de la parada.
+La aplicación guarda instantáneamente el registro con: ID de la máquina, causa, producto, cantidad y un timestamp preciso.
+Lógica Condicional: Si el botón presionado está marcado como una "Avería" (ver Panel de Administración), el sistema automáticamente creará una "solicitud de mantenimiento" abierta.
+El operador recibe una confirmación visual inmediata (ej. un checkmark verde) y la pantalla se resetea, lista para el siguiente evento. El operador no necesita hacer nada más.
+2. Interfaz de Mantenimiento (Web/Tablet para el Equipo de Mantenimiento):
+Dashboard de Averías: El equipo de mantenimiento tendrá acceso a un dashboard que mostrará una lista de todas las solicitudes de mantenimiento abiertas, ordenadas por urgencia o antigüedad.
+Información del Ticket: Cada solicitud en el dashboard mostrará información clave:
+Máquina afectada.
+Hora del reporte.
+Causa de la parada reportada por el operador.
+Estado actual: "Abierta", "En Progreso" o "Cerrada".
+Flujo de Trabajo de Mantenimiento:
+Aceptación del Ticket: Un técnico de mantenimiento ve una nueva solicitud con estado "Abierta". Al empezar a trabajar en ella, hace clic en un botón de "Aceptar" o "Iniciar Trabajo".
+El estado del ticket cambia a "En Progreso".
+La aplicación registra el timestamp_aceptacion y el id_tecnico que aceptó el trabajo.
+Cierre del Ticket: Una vez resuelta la avería, el técnico accede al ticket y presiona "Cerrar Tarea".
+Aparecerá un campo opcional para añadir "Notas de Cierre" o "Causa Raíz".
+Al confirmar, el estado del ticket cambia a "Cerrada".
+La aplicación registra el timestamp_cierre.
+Historial y Búsqueda: La interfaz de mantenimiento debe permitir buscar y filtrar tickets históricos para análisis de averías pasadas.
+3. Panel de Administración (Acceso Web):
+Gestión de Máquinas y Productos: Funcionalidad para añadir, editar o eliminar máquinas y productos.
+Gestión de Causas de Parada (Modificado):
+Permitir crear y personalizar los botones que ve el operador.
+Crucial: Cada causa de parada debe tener una casilla de verificación o un switch llamado "Requiere intervención de mantenimiento". Si esta casilla está marcada, cualquier parada registrada con esta causa generará automáticamente un ticket en el dashboard de mantenimiento.
+Gestión de Usuarios: Creación de perfiles para operadores, supervisores y técnicos de mantenimiento con diferentes niveles de acceso.
+4. Base de Datos (Estructura Ampliada):
+La tabla de registros de paradas debe incluir los siguientes campos para soportar el flujo de mantenimiento:
+id_registro
+id_maquina
+causa_parada
+timestamp_parada (inicio)
+producto
+requiere_mantenimiento (booleano, determinado por la causa)
+estado_mantenimiento (texto: 'No Aplica', 'Abierta', 'En Progreso', 'Cerrada')
+id_tecnico_asignado
+timestamp_aceptacion
+timestamp_cierre
+notas_mantenimiento
+Ejemplo de Escenario de Uso Completo:
+Operador (10:15 AM): La "Prensa 3" se detiene. El operador toma la tablet, que ya está configurada para su máquina, y presiona el botón "Falla Mecánica". La pantalla muestra una confirmación y queda libre.
+Sistema (10:15 AM): Como "Falla Mecánica" está marcada para requerir intervención, se crea un nuevo ticket con estado "Abierta" en el sistema de mantenimiento.
+Mantenimiento (10:17 AM): Un técnico, desde su taller, ve la nueva alerta en su dashboard de mantenimiento para la "Prensa 3". Hace clic en "Aceptar". El estado cambia a "En Progreso" y el sistema registra la hora.
+Resolución (10:45 AM): El técnico repara la máquina. Vuelve a su dashboard, abre el ticket, añade la nota "Se ajustó el sensor de presión hidráulica" y presiona "Cerrar".
+Análisis (Posterior): Un supervisor puede ahora generar un reporte y ver que la parada de la "Prensa 3" duró 30 minutos (de 10:15 a 10:45), fue atendida en 2 minutos y conoce la causa raíz exacta gracias a las notas del técnico.
