@@ -12,10 +12,14 @@ import { Plus, Pencil, Trash2, Settings, Package, Wrench, Users, UserCog } from 
 import { Badge } from "@/components/ui/badge";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Machine, Product, StoppageCause, Technician, InsertMachine, InsertProduct, InsertStoppageCause, InsertTechnician, User } from "@shared/schema";
+import { useWebSocket } from "@/lib/websocket";
+import { useUser } from "@/hooks/use-user";
 
 type UserWithoutPassword = Omit<User, "passwordHash">;
 
 export default function AdminView() {
+  const { data: user } = useUser();
+  const { isConnected } = useWebSocket(user || null);
   const [machineDialog, setMachineDialog] = useState<{ open: boolean; machine?: Machine }>({ open: false });
   const [productDialog, setProductDialog] = useState<{ open: boolean; product?: Product }>({ open: false });
   const [causeDialog, setCauseDialog] = useState<{ open: boolean; cause?: StoppageCause }>({ open: false });

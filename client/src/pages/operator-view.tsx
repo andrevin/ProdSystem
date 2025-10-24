@@ -19,15 +19,7 @@ const MACHINE_PASSCODE = "1234";
 
 export default function OperatorView() {
   const { data: user } = useUser();
-  const { isConnected, lastMessage } = useWebSocket(user || null);
-
-  // Log WebSocket connection status for testing
-  useEffect(() => {
-    console.log("[Operator View] WebSocket connected:", isConnected);
-    if (lastMessage) {
-      console.log("[Operator View] Last message:", lastMessage);
-    }
-  }, [isConnected, lastMessage]);
+  const { isConnected } = useWebSocket(user || null);
   const [configuredMachine, setConfiguredMachine] = useState<number | null>(null);
   const [showConfigDialog, setShowConfigDialog] = useState(false);
   const [passcode, setPasscode] = useState("");

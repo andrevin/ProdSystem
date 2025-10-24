@@ -14,8 +14,12 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import type { DowntimeRecordWithRelations, Technician } from "@shared/schema";
+import { useWebSocket } from "@/lib/websocket";
+import { useUser } from "@/hooks/use-user";
 
 export default function MaintenanceView() {
+  const { data: user } = useUser();
+  const { isConnected } = useWebSocket(user || null);
   const [selectedTicket, setSelectedTicket] = useState<DowntimeRecordWithRelations | null>(null);
   const [notes, setNotes] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
