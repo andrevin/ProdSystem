@@ -18,6 +18,7 @@ import {
 import {
   broadcastMachineStatusChange,
   broadcastTicketCreated,
+  broadcastTicketAccepted,
   broadcastTicketClosed,
   broadcastBatchStarted,
   broadcastBatchFinished,
@@ -578,6 +579,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       const record = await storage.createDowntimeRecord(recordData);
+      
+      // Broadcast events if maintenance is required
+      if (record.requiresMaintenance) {
+        // Get full record with relations for broadcast
+        const fullRecord = await storage.getDowntimeRecord(record.id);
+        if (fullRecord) {
+          broadcastTicketCreated(record.id, record.machineId, fullRecord);
+          broadcastMachineStopped(record.machineId, fullRecord);
+        }
+      }
+      
       res.status(201).json(record);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Invalid downtime record data";
@@ -614,6 +626,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!record) {
         return res.status(404).json({ error: "Ticket not found" });
       }
+      
+      // Broadcast ticket acceptance
+      broadcastTicketAccepted(record.id, record);
+      
       res.json(record);
     } catch (error) {
       res.status(500).json({ error: "Failed to accept ticket" });

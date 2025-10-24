@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -19,7 +19,7 @@ import { useUser } from "@/hooks/use-user";
 
 export default function MaintenanceView() {
   const { data: user } = useUser();
-  const { isConnected } = useWebSocket(user || null);
+  const { isConnected, subscribe } = useWebSocket(user || null);
   const [selectedTicket, setSelectedTicket] = useState<DowntimeRecordWithRelations | null>(null);
   const [notes, setNotes] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -60,6 +60,34 @@ export default function MaintenanceView() {
       setSelectedTechnicianId(null);
     },
   });
+
+  // WebSocket subscriptions for real-time updates
+  useEffect(() => {
+    if (!subscribe) return;
+
+    const unsubscribeCreated = subscribe("ticket_created", (message) => {
+      console.log("[Maintenance] New ticket created:", message.data);
+    });
+
+    const unsubscribeAssigned = subscribe("ticket_assigned", (message) => {
+      console.log("[Maintenance] Ticket assigned:", message.ticketId, "to technician:", message.technicianId);
+    });
+
+    const unsubscribeAccepted = subscribe("ticket_accepted", (message) => {
+      console.log("[Maintenance] Ticket accepted:", message.ticketId);
+    });
+
+    const unsubscribeClosed = subscribe("ticket_closed", (message) => {
+      console.log("[Maintenance] Ticket closed:", message.ticketId, "machine:", message.machineId);
+    });
+
+    return () => {
+      unsubscribeCreated();
+      unsubscribeAssigned();
+      unsubscribeAccepted();
+      unsubscribeClosed();
+    };
+  }, [subscribe]);
 
   const handleAcceptTicket = (ticket: DowntimeRecordWithRelations) => {
     setSelectedTicket(ticket);
