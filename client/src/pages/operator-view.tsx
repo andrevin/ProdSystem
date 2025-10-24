@@ -77,6 +77,7 @@ export default function OperatorView() {
   const [showBatchDialog, setShowBatchDialog] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<number | null>(null);
   const [plannedQuantity, setPlannedQuantity] = useState<number>(0);
+  const [productSearch, setProductSearch] = useState("");
   
   const [showFinishDialog, setShowFinishDialog] = useState(false);
   const [actualQuantity, setActualQuantity] = useState<number>(0);
@@ -97,6 +98,16 @@ export default function OperatorView() {
 
   const { data: products } = useQuery<Product[]>({
     queryKey: ["/api/products"],
+  });
+
+  // Filter products by name OR SKU
+  const filteredProducts = products?.filter((product) => {
+    if (!productSearch) return true;
+    const search = productSearch.toLowerCase();
+    return (
+      product.name.toLowerCase().includes(search) ||
+      product.sku.toLowerCase().includes(search)
+    );
   });
 
   const { data: causes } = useQuery<StoppageCause[]>({
@@ -505,6 +516,16 @@ export default function OperatorView() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
+              <Label>Buscar Producto (Nombre o SKU)</Label>
+              <Input
+                type="text"
+                placeholder="Buscar por nombre o SKU..."
+                value={productSearch}
+                onChange={(e) => setProductSearch(e.target.value)}
+                data-testid="input-product-search"
+              />
+            </div>
+            <div className="space-y-2">
               <Label>Producto</Label>
               <Select
                 value={selectedProduct?.toString()}
@@ -514,13 +535,13 @@ export default function OperatorView() {
                   <SelectValue placeholder="Seleccione producto" />
                 </SelectTrigger>
                 <SelectContent>
-                  {products?.map((product) => (
+                  {filteredProducts?.map((product) => (
                     <SelectItem 
                       key={product.id} 
                       value={product.id.toString()}
                       data-testid={`option-product-${product.id}`}
                     >
-                      {product.name}
+                      {product.name} - SKU: {product.sku}
                     </SelectItem>
                   ))}
                 </SelectContent>
