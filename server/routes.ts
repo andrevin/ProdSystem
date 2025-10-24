@@ -1,15 +1,197 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import passport from "passport";
+import bcrypt from "bcryptjs";
 import { storage } from "./storage";
+import { setupAuth, requireAuth, requireRole } from "./auth";
 import { 
   insertMachineSchema, 
   insertProductSchema, 
   insertStoppageCauseSchema,
   insertTechnicianSchema,
-  insertDowntimeRecordSchema 
+  insertDowntimeRecordSchema,
+  insertUserSchema,
+  insertFailureDiagnosticSchema,
+  type User
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Authentication endpoints
+  // Public registration - always creates operator role for security
+  app.post("/api/register", async (req, res) => {
+    try {
+      const { password, ...userData } = req.body;
+
+      // Validate required fields
+      if (!password) {
+        return res.status(400).json({ error: "La contraseña es requerida" });
+      }
+
+      // Validate user data with Zod schema, omit role and passwordHash
+      const validated = insertUserSchema
+        .omit({ passwordHash: true, role: true })
+        .parse(userData);
+
+      // Check if user exists
+      const existingUser = await storage.getUserByEmail(validated.email);
+      if (existingUser) {
+        return res.status(400).json({ error: "El email ya está registrado" });
+      }
+
+      // Hash password
+      const passwordHash = await bcrypt.hash(password, 10);
+
+      // Create user - ALWAYS assign operator role for security
+      const user = await storage.createUser({
+        ...validated,
+        role: "operator", // Force operator role on public registration
+        passwordHash,
+      });
+
+      // Remove password hash from response
+      const { passwordHash: _, ...userWithoutPassword } = user;
+
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof Error && 'issues' in error) {
+        return res.status(400).json({ error: "Datos de usuario inválidos" });
+      }
+      res.status(500).json({ error: "Error al crear usuario" });
+    }
+  });
+
+  app.post("/api/login", (req, res, next) => {
+    passport.authenticate("local", (err: any, user: User | false, info: any) => {
+      if (err) {
+        return res.status(500).json({ error: "Error de autenticación" });
+      }
+      if (!user) {
+        return res.status(401).json({ error: info?.message || "Credenciales inválidas" });
+      }
+
+      req.logIn(user, (err) => {
+        if (err) {
+          return res.status(500).json({ error: "Error al iniciar sesión" });
+        }
+
+        // Remove password hash from response
+        const { passwordHash, ...userWithoutPassword } = user;
+        return res.json(userWithoutPassword);
+      });
+    })(req, res, next);
+  });
+
+  app.post("/api/logout", (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        return res.status(500).json({ error: "Error al cerrar sesión" });
+      }
+      res.json({ message: "Sesión cerrada exitosamente" });
+    });
+  });
+
+  app.get("/api/me", requireAuth, (req, res) => {
+    const user = req.user as User;
+    const { passwordHash, ...userWithoutPassword } = user;
+    res.json(userWithoutPassword);
+  });
+
+  // User management endpoints (admin only)
+  app.get("/api/users", requireAuth, requireRole("admin"), async (req, res) => {
+    try {
+      const users = await storage.getUsers();
+      // Remove password hashes from response
+      const usersWithoutPasswords = users.map(({ passwordHash, ...user }) => user);
+      res.json(usersWithoutPasswords);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  app.get("/api/users/:id", requireAuth, requireRole("admin"), async (req, res) => {
+    try {
+      const user = await storage.getUser(parseInt(req.params.id));
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      const { passwordHash, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch user" });
+    }
+  });
+
+  app.patch("/api/users/:id", requireAuth, requireRole("admin"), async (req, res) => {
+    try {
+      const { password, ...updateData } = req.body;
+      
+      // If password is being updated, hash it
+      if (password) {
+        updateData.passwordHash = await bcrypt.hash(password, 10);
+      }
+
+      const user = await storage.updateUser(parseInt(req.params.id), updateData);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      const { passwordHash, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid user data" });
+    }
+  });
+
+  app.delete("/api/users/:id", requireAuth, requireRole("admin"), async (req, res) => {
+    try {
+      await storage.deleteUser(parseInt(req.params.id));
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete user" });
+    }
+  });
+
+  // Failure Diagnostics endpoints (admin only)
+  app.get("/api/diagnostics", requireAuth, async (req, res) => {
+    try {
+      const diagnostics = await storage.getFailureDiagnostics();
+      res.json(diagnostics);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch diagnostics" });
+    }
+  });
+
+  app.post("/api/diagnostics", requireAuth, requireRole("admin"), async (req, res) => {
+    try {
+      const validated = insertFailureDiagnosticSchema.parse(req.body);
+      const diagnostic = await storage.createFailureDiagnostic(validated);
+      res.status(201).json(diagnostic);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid diagnostic data" });
+    }
+  });
+
+  app.patch("/api/diagnostics/:id", requireAuth, requireRole("admin"), async (req, res) => {
+    try {
+      const validated = insertFailureDiagnosticSchema.partial().parse(req.body);
+      const diagnostic = await storage.updateFailureDiagnostic(parseInt(req.params.id), validated);
+      if (!diagnostic) {
+        return res.status(404).json({ error: "Diagnostic not found" });
+      }
+      res.json(diagnostic);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid diagnostic data" });
+    }
+  });
+
+  app.delete("/api/diagnostics/:id", requireAuth, requireRole("admin"), async (req, res) => {
+    try {
+      await storage.deleteFailureDiagnostic(parseInt(req.params.id));
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete diagnostic" });
+    }
+  });
+
   // Machines endpoints
   app.get("/api/machines", async (req, res) => {
     try {

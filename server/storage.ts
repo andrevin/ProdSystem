@@ -5,22 +5,42 @@ import {
   stoppageCauses, 
   technicians,
   downtimeRecords,
+  users,
+  failureDiagnostics,
+  productionBatches,
+  auditLogs,
   type Machine, 
   type Product, 
   type StoppageCause, 
   type Technician,
   type DowntimeRecord,
   type DowntimeRecordWithRelations,
+  type User,
+  type FailureDiagnostic,
+  type ProductionBatch,
+  type AuditLog,
   type InsertMachine, 
   type InsertProduct, 
   type InsertStoppageCause, 
   type InsertTechnician,
-  type InsertDowntimeRecord
+  type InsertDowntimeRecord,
+  type InsertUser,
+  type InsertFailureDiagnostic,
+  type InsertProductionBatch,
+  type InsertAuditLog
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or } from "drizzle-orm";
 
 export interface IStorage {
+  // Users
+  getUsers(): Promise<User[]>;
+  getUser(id: number): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
+  deleteUser(id: number): Promise<void>;
+
   // Machines
   getMachines(): Promise<Machine[]>;
   getMachine(id: number): Promise<Machine | undefined>;
@@ -49,6 +69,13 @@ export interface IStorage {
   updateTechnician(id: number, technician: Partial<InsertTechnician>): Promise<Technician | undefined>;
   deleteTechnician(id: number): Promise<void>;
 
+  // Failure Diagnostics
+  getFailureDiagnostics(): Promise<FailureDiagnostic[]>;
+  getFailureDiagnostic(id: number): Promise<FailureDiagnostic | undefined>;
+  createFailureDiagnostic(diagnostic: InsertFailureDiagnostic): Promise<FailureDiagnostic>;
+  updateFailureDiagnostic(id: number, diagnostic: Partial<InsertFailureDiagnostic>): Promise<FailureDiagnostic | undefined>;
+  deleteFailureDiagnostic(id: number): Promise<void>;
+
   // Downtime Records
   getDowntimeRecords(): Promise<DowntimeRecordWithRelations[]>;
   getDowntimeRecord(id: number): Promise<DowntimeRecordWithRelations | undefined>;
@@ -63,6 +90,39 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // Users
+  async getUsers(): Promise<User[]> {
+    return await db.select().from(users);
+  }
+
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
+  }
+
+  async updateUser(id: number, updateData: Partial<InsertUser>): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  }
+
+  async deleteUser(id: number): Promise<void> {
+    await db.delete(users).where(eq(users.id, id));
+  }
+
   // Machines
   async getMachines(): Promise<Machine[]> {
     return await db.select().from(machines);
@@ -173,6 +233,34 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTechnician(id: number): Promise<void> {
     await db.delete(technicians).where(eq(technicians.id, id));
+  }
+
+  // Failure Diagnostics
+  async getFailureDiagnostics(): Promise<FailureDiagnostic[]> {
+    return await db.select().from(failureDiagnostics);
+  }
+
+  async getFailureDiagnostic(id: number): Promise<FailureDiagnostic | undefined> {
+    const [diagnostic] = await db.select().from(failureDiagnostics).where(eq(failureDiagnostics.id, id));
+    return diagnostic || undefined;
+  }
+
+  async createFailureDiagnostic(insertDiagnostic: InsertFailureDiagnostic): Promise<FailureDiagnostic> {
+    const [diagnostic] = await db.insert(failureDiagnostics).values(insertDiagnostic).returning();
+    return diagnostic;
+  }
+
+  async updateFailureDiagnostic(id: number, updateData: Partial<InsertFailureDiagnostic>): Promise<FailureDiagnostic | undefined> {
+    const [diagnostic] = await db
+      .update(failureDiagnostics)
+      .set(updateData)
+      .where(eq(failureDiagnostics.id, id))
+      .returning();
+    return diagnostic || undefined;
+  }
+
+  async deleteFailureDiagnostic(id: number): Promise<void> {
+    await db.delete(failureDiagnostics).where(eq(failureDiagnostics.id, id));
   }
 
   // Downtime Records with Relations
