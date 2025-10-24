@@ -12,6 +12,7 @@ import {
   insertDowntimeRecordSchema,
   insertUserSchema,
   insertFailureDiagnosticSchema,
+  insertProductionBatchSchema,
   type User
 } from "@shared/schema";
 
@@ -189,6 +190,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete diagnostic" });
+    }
+  });
+
+  // Production Batches endpoints
+  app.get("/api/batches", requireAuth, async (req, res) => {
+    try {
+      const batches = await storage.getProductionBatches();
+      res.json(batches);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch batches" });
+    }
+  });
+
+  app.get("/api/batches/:id", requireAuth, async (req, res) => {
+    try {
+      const batch = await storage.getProductionBatch(parseInt(req.params.id));
+      if (!batch) {
+        return res.status(404).json({ error: "Batch not found" });
+      }
+      res.json(batch);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch batch" });
+    }
+  });
+
+  app.get("/api/machines/:machineId/active-batch", requireAuth, async (req, res) => {
+    try {
+      const batch = await storage.getActiveBatchByMachine(parseInt(req.params.machineId));
+      if (!batch) {
+        return res.status(404).json({ error: "No active batch found for this machine" });
+      }
+      res.json(batch);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch active batch" });
+    }
+  });
+
+  app.post("/api/batches", requireAuth, async (req, res) => {
+    try {
+      const validated = insertProductionBatchSchema.parse(req.body);
+      const batch = await storage.createProductionBatch(validated);
+      res.status(201).json(batch);
+    } catch (error: any) {
+      if (error.message && error.message.includes("Ya existe un lote activo")) {
+        return res.status(400).json({ error: error.message });
+      }
+      res.status(400).json({ error: "Invalid batch data" });
+    }
+  });
+
+  app.patch("/api/batches/:id", requireAuth, async (req, res) => {
+    try {
+      const validated = insertProductionBatchSchema.partial().parse(req.body);
+      const batch = await storage.updateProductionBatch(parseInt(req.params.id), validated);
+      if (!batch) {
+        return res.status(404).json({ error: "Batch not found" });
+      }
+      res.json(batch);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid batch data" });
+    }
+  });
+
+  app.post("/api/batches/:id/finish", requireAuth, async (req, res) => {
+    try {
+      const { actualQuantity } = req.body;
+      if (typeof actualQuantity !== "number" || actualQuantity < 0) {
+        return res.status(400).json({ error: "Invalid actual quantity" });
+      }
+      const batch = await storage.finishProductionBatch(parseInt(req.params.id), actualQuantity);
+      if (!batch) {
+        return res.status(404).json({ error: "Batch not found" });
+      }
+      res.json(batch);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to finish batch" });
     }
   });
 

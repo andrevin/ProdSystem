@@ -87,6 +87,14 @@ export interface IStorage {
   getHistoricalMaintenanceTickets(): Promise<DowntimeRecordWithRelations[]>;
   acceptMaintenanceTicket(id: number, technicianId: number): Promise<DowntimeRecord | undefined>;
   closeMaintenanceTicket(id: number, notes: string): Promise<DowntimeRecord | undefined>;
+
+  // Production Batches
+  getProductionBatches(): Promise<ProductionBatch[]>;
+  getProductionBatch(id: number): Promise<ProductionBatch | undefined>;
+  getActiveBatchByMachine(machineId: number): Promise<ProductionBatch | undefined>;
+  createProductionBatch(batch: InsertProductionBatch): Promise<ProductionBatch>;
+  updateProductionBatch(id: number, batch: Partial<ProductionBatch>): Promise<ProductionBatch | undefined>;
+  finishProductionBatch(id: number, producedQuantity: number): Promise<ProductionBatch | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -391,6 +399,67 @@ export class DatabaseStorage implements IStorage {
       .where(eq(downtimeRecords.id, id))
       .returning();
     return record || undefined;
+  }
+
+  // Production Batches
+  async getProductionBatches(): Promise<ProductionBatch[]> {
+    return await db.select().from(productionBatches).orderBy(desc(productionBatches.timestampStart));
+  }
+
+  async getProductionBatch(id: number): Promise<ProductionBatch | undefined> {
+    const [batch] = await db.select().from(productionBatches).where(eq(productionBatches.id, id));
+    return batch || undefined;
+  }
+
+  async getActiveBatchByMachine(machineId: number): Promise<ProductionBatch | undefined> {
+    const [batch] = await db
+      .select()
+      .from(productionBatches)
+      .where(
+        and(
+          eq(productionBatches.machineId, machineId),
+          eq(productionBatches.status, "En Curso")
+        )
+      )
+      .orderBy(desc(productionBatches.timestampStart))
+      .limit(1);
+    return batch || undefined;
+  }
+
+  async createProductionBatch(insertBatch: InsertProductionBatch): Promise<ProductionBatch> {
+    // Check if there's already an active batch for this machine
+    const activeBatch = await this.getActiveBatchByMachine(insertBatch.machineId);
+    if (activeBatch) {
+      throw new Error("Ya existe un lote activo para esta máquina. Finalice el lote actual antes de iniciar uno nuevo.");
+    }
+
+    const [batch] = await db.insert(productionBatches).values({
+      ...insertBatch,
+      status: "En Curso",
+    }).returning();
+    return batch;
+  }
+
+  async updateProductionBatch(id: number, updateData: Partial<ProductionBatch>): Promise<ProductionBatch | undefined> {
+    const [batch] = await db
+      .update(productionBatches)
+      .set(updateData)
+      .where(eq(productionBatches.id, id))
+      .returning();
+    return batch || undefined;
+  }
+
+  async finishProductionBatch(id: number, actualQuantity: number): Promise<ProductionBatch | undefined> {
+    const [batch] = await db
+      .update(productionBatches)
+      .set({
+        actualQuantity,
+        timestampEnd: new Date(),
+        status: "Completado",
+      })
+      .where(eq(productionBatches.id, id))
+      .returning();
+    return batch || undefined;
   }
 }
 
