@@ -47,6 +47,7 @@ export interface IStorage {
   createMachine(machine: InsertMachine): Promise<Machine>;
   updateMachine(id: number, machine: Partial<InsertMachine>): Promise<Machine | undefined>;
   deleteMachine(id: number): Promise<void>;
+  unlockMachine(machineId: number): Promise<Machine | undefined>;
 
   // Products
   getProducts(): Promise<Product[]>;
@@ -95,6 +96,9 @@ export interface IStorage {
   createProductionBatch(batch: InsertProductionBatch): Promise<ProductionBatch>;
   updateProductionBatch(id: number, batch: Partial<ProductionBatch>): Promise<ProductionBatch | undefined>;
   finishProductionBatch(id: number, producedQuantity: number): Promise<ProductionBatch | undefined>;
+
+  // Audit Logs
+  createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -157,6 +161,17 @@ export class DatabaseStorage implements IStorage {
 
   async deleteMachine(id: number): Promise<void> {
     await db.delete(machines).where(eq(machines.id, id));
+  }
+
+  async unlockMachine(machineId: number): Promise<Machine | undefined> {
+    const machine = await this.getMachine(machineId);
+    if (!machine) {
+      return undefined;
+    }
+    
+    return await this.updateMachine(machineId, {
+      operationalStatus: "Operativa",
+    });
   }
 
   // Products
@@ -330,6 +345,14 @@ export class DatabaseStorage implements IStorage {
     };
 
     const [record] = await db.insert(downtimeRecords).values(recordWithMaintenanceLogic).returning();
+    
+    // Automatically block machine if maintenance is required
+    if (cause.requiresMaintenance) {
+      await this.updateMachine(insertRecord.machineId, {
+        operationalStatus: "Bloqueada",
+      });
+    }
+    
     return record;
   }
 
@@ -389,6 +412,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async closeMaintenanceTicket(id: number, notes: string): Promise<DowntimeRecord | undefined> {
+    // Get the record first to access machineId
+    const existingRecord = await this.getDowntimeRecord(id);
+    if (!existingRecord) {
+      throw new Error(`Downtime record with ID ${id} not found`);
+    }
+
     const [record] = await db
       .update(downtimeRecords)
       .set({
@@ -398,6 +427,14 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(downtimeRecords.id, id))
       .returning();
+    
+    // Automatically unblock machine when ticket is closed
+    if (record && existingRecord.requiresMaintenance) {
+      await this.updateMachine(existingRecord.machineId, {
+        operationalStatus: "Operativa",
+      });
+    }
+    
     return record || undefined;
   }
 
@@ -460,6 +497,12 @@ export class DatabaseStorage implements IStorage {
       .where(eq(productionBatches.id, id))
       .returning();
     return batch || undefined;
+  }
+
+  // Audit Logs
+  async createAuditLog(insertLog: InsertAuditLog): Promise<AuditLog> {
+    const [log] = await db.insert(auditLogs).values(insertLog).returning();
+    return log;
   }
 }
 

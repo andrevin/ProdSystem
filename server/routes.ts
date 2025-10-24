@@ -323,6 +323,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/machines/:id/unlock", requireAuth, requireRole("supervisor", "admin"), async (req, res) => {
+    try {
+      const machineId = parseInt(req.params.id);
+      const machine = await storage.unlockMachine(machineId);
+      if (!machine) {
+        return res.status(404).json({ error: "Machine not found" });
+      }
+
+      // Log the manual unlock action in audit log
+      const user = req.user as User;
+      await storage.createAuditLog({
+        userId: user.id,
+        actionType: "unlock_machine",
+        entityType: "machine",
+        entityId: machineId,
+        details: {
+          machineName: machine.name,
+          previousStatus: "Bloqueada",
+          newStatus: "Operativa",
+          unlockedBy: user.name,
+          userRole: user.role,
+        },
+      });
+
+      res.json(machine);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to unlock machine";
+      res.status(500).json({ error: message });
+    }
+  });
+
   // Products endpoints
   app.get("/api/products", async (req, res) => {
     try {
