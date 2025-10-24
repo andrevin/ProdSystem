@@ -653,6 +653,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Push Notifications endpoints  
+  app.get("/api/push/vapid-public-key", (req, res) => {
+    res.json({ publicKey: "BGlqn_3z5u5YZ0x3pMqH2S1WZJvDvr7wY-hH0LF6nKYqMN7wKxVzY8fVZ0Y6qRF3_2Y5Q0X8F9K7L6M5N4P3Q2R1" });
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

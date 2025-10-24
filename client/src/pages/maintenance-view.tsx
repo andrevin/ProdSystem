@@ -90,8 +90,17 @@ export default function MaintenanceView() {
   }, [subscribe]);
 
   const handleAcceptTicket = (ticket: DowntimeRecordWithRelations) => {
-    setSelectedTicket(ticket);
-    setSelectedTechnicianId(null);
+    // If technician clicks "Tomar Ticket", auto-assign to themselves
+    if (user?.role === "technician") {
+      acceptTicketMutation.mutate({
+        ticketId: ticket.id,
+        technicianId: user.id,
+      });
+    } else {
+      // Chief/Admin clicks "Asignar a Técnico", show dialog
+      setSelectedTicket(ticket);
+      setSelectedTechnicianId(null);
+    }
   };
 
   const handleConfirmAccept = () => {
@@ -211,14 +220,28 @@ export default function MaintenanceView() {
         {!isHistory && (
           <div className="flex gap-2 pt-2">
             {ticket.maintenanceStatus === "Abierta" && (
-              <Button
-                onClick={() => handleAcceptTicket(ticket)}
-                className="flex-1"
-                data-testid={`button-accept-${ticket.id}`}
-              >
-                <PlayCircle className="w-4 h-4 mr-2" />
-                Aceptar
-              </Button>
+              <>
+                {(user?.role === "maintenance_chief" || user?.role === "admin") && (
+                  <Button
+                    onClick={() => handleAcceptTicket(ticket)}
+                    className="flex-1"
+                    data-testid={`button-assign-${ticket.id}`}
+                  >
+                    Asignar a Técnico
+                  </Button>
+                )}
+                {user?.role === "technician" && !ticket.technicianId && (
+                  <Button
+                    onClick={() => handleAcceptTicket(ticket)}
+                    className="flex-1"
+                    variant="default"
+                    data-testid={`button-take-${ticket.id}`}
+                  >
+                    <PlayCircle className="w-4 h-4 mr-2" />
+                    Tomar Ticket
+                  </Button>
+                )}
+              </>
             )}
             {ticket.maintenanceStatus === "En Progreso" && (
               <Button
