@@ -21,8 +21,8 @@ Preferred communication style: Simple, everyday language.
 **Framework**: React 18+ with TypeScript in SPA (Single Page Application) mode
 
 **Routing**: Wouter (lightweight client-side routing)
-- Three main routes: `/` (Operator), `/maintenance`, `/maintenance`, `/admin`
-- No authentication implemented - role-based access is UI-only
+- Three main routes: `/` (Operator), `/maintenance`, `/admin`
+- **IN DEVELOPMENT**: Authentication with Passport.js, role-based access control
 
 **UI Component System**: shadcn/ui (Radix UI primitives + Tailwind CSS)
 - Design system follows Material Design 3 principles for industrial environments
@@ -47,9 +47,11 @@ Preferred communication style: Simple, everyday language.
 **Framework**: Express.js with TypeScript
 
 **API Pattern**: RESTful HTTP endpoints
-- CRUD operations for: machines, products, stoppage causes, technicians
+- CRUD operations for: machines, products, stoppage causes, technicians, users, diagnostics
 - Specialized endpoints for downtime records and maintenance ticket workflows
-- No authentication middleware implemented
+- Production batch management
+- Audit logging for critical operations
+- **IN DEVELOPMENT**: Authentication middleware with Passport.js
 
 **Database ORM**: Drizzle ORM
 - Type-safe query builder
@@ -70,15 +72,23 @@ Preferred communication style: Simple, everyday language.
 - Connection pooling with `@neondatabase/serverless`
 
 **Core Tables**:
-1. `machines` - Production equipment registry
-2. `products` - Items being manufactured
-3. `stoppage_causes` - Configurable reasons for downtime (with maintenance flag)
-4. `technicians` - Maintenance team members
-5. `downtime_records` - Time-stamped stoppage events with maintenance lifecycle tracking
+1. `users` - **NEW**: User accounts with roles (operator, technician, maintenance_chief, supervisor, admin)
+2. `machines` - Production equipment registry with operational status (Operativa/Bloqueada)
+3. `products` - Items being manufactured
+4. `stoppage_causes` - Configurable reasons for downtime (with maintenance flag)
+5. `technicians` - **LEGACY**: Maintenance team members (kept for compatibility)
+6. `production_batches` - **NEW**: Production lot tracking with quantities and timestamps
+7. `downtime_records` - Time-stamped stoppage events with extended maintenance lifecycle
+8. `failure_diagnostics` - **NEW**: Categorized failure types for root cause analysis
+9. `audit_logs` - **NEW**: Complete audit trail for critical operations
 
 **Key Schema Features**:
-- `stoppage_causes.requiresMaintenance` boolean determines automatic ticket creation
-- `downtime_records` includes maintenance workflow fields: status, assigned technician, acceptance timestamp, closure timestamp, notes
+- `users.role` determines access permissions and workflow capabilities
+- `machines.operationalStatus` enables automatic blocking when maintenance required
+- `production_batches` track complete lot lifecycle from start to completion
+- `downtime_records` now includes: batch association, priority levels, assignment tracking (separate from acceptance), photo evidence, diagnostic classification
+- `audit_logs` capture all critical actions with user context and JSON details
+- Enhanced maintenance workflow: Abierta (Sin Asignar) → Asignada (by chief) → En Progreso (accepted by tech) → Cerrada (with photo + diagnostic)
 - All relations defined with Drizzle ORM relations for type-safe joins
 
 ### External Dependencies

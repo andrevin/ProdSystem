@@ -1,0 +1,63 @@
+Desarrollar una Progressive Web App (PWA) para web y tablet que integre la gestión de lotes de producción con un robusto sistema de gestión de órdenes de trabajo de mantenimiento. El sistema debe automatizar la creación de tickets a partir de averías, bloquear la operación de las máquinas afectadas y notificar al personal clave en tiempo real a través de notificaciones push nativas.
+Sección 1: Requerimientos Arquitectónicos Fundamentales (PWA)
+La aplicación debe ser construida desde cero como una Progressive Web App para garantizar una experiencia de usuario superior, confiabilidad y capacidades de notificación proactivas.
+1.1. Instalable (Add to Home Screen):
+La aplicación debe ser instalable en el escritorio de un PC y en la pantalla de inicio de tablets (iOS/Android). Debe contar con un manifest.json correctamente configurado, un ícono de aplicación y un splash screen para una experiencia de carga nativa.
+1.2. Capacidad Offline (Offline-First):
+Interfaz del Operador: Es crítico que el operador pueda registrar una parada incluso si la conexión a la red es intermitente o nula. La aplicación debe usar Service Workers para almacenar la acción localmente y sincronizarla con el servidor tan pronto como se restablezca la conexión.
+Interfaz de Mantenimiento: Los técnicos deben poder visualizar los tickets que ya han sido cargados y añadir notas sin conexión. La sincronización se realizará al recuperar la conectividad.
+1.3. Notificaciones Push Nativas:
+La aplicación debe utilizar la Push API para enviar notificaciones en tiempo real directamente a los dispositivos de los usuarios, incluso si la aplicación no está abierta en primer plano. Los eventos de notificación clave son:
+Para Jefes de Mantenimiento: Una notificación push inmediata cuando se crea un nuevo ticket con estado "Abierta (Sin Asignar)".
+Para Técnicos de Mantenimiento: Una notificación push personal y directa cuando se les asigna un ticket específico.
+Sección 2: Interfaz del Operador (Optimizada para Tablet)
+2.1. Configuración Persistente:
+Al iniciar, un supervisor configura la máquina para esa estación. La configuración persiste entre reinicios.
+2.2. Flujo de Producción por Lotes:
+A. Inicio de Lote: El operador selecciona producto, cantidad y presiona "INICIAR LOTE".
+B. Lote en Curso: La pantalla muestra los botones de causa de parada y el botón "FINALIZAR LOTE".
+C. Gestión de Paradas:
+CASO 1 (Parada Operativa): Se muestra una alerta visual y un botón "REANUDAR PRODUCCIÓN".
+CASO 2 (Parada por Avería): Se crea el ticket y la interfaz se bloquea con un mensaje "MÁQUINA BLOQUEADA POR MANTENIMIENTO", sin opción de reanudar para el operador.
+D. Finalización de Lote: El operador presiona "FINALIZAR LOTE" para cerrar el ciclo.
+Sección 3: Interfaz de Mantenimiento (Web/Tablet)
+3.1. Dashboard de Órdenes de Trabajo:
+Vista principal de tickets, que se actualiza en tiempo real. Las nuevas órdenes de trabajo y asignaciones deben aparecer automáticamente, impulsadas por las notificaciones push.
+3.2. Vista Detallada del Ticket y Acceso a Documentación:
+Al abrir un ticket, la vista debe contener:
+A) Información de la Orden de Trabajo: Datos y historial del ticket.
+B) Biblioteca de Documentos de la Máquina (Acceso Directo): Una sección visible dentro de la misma pantalla del ticket que lista todos los manuales, planos y procedimientos de la máquina afectada, con botones para "Ver/Descargar" directamente. El técnico debe tener toda la información contextual sin salir de la vista de la tarea.
+3.3. Flujo de Trabajo de Mantenimiento por Roles:
+Creación: El ticket se crea con estado "Abierta (Sin Asignar)".
+Asignación (Jefe de Mantenimiento): Asigna el ticket a un técnico.
+Aceptación (Técnico Asignado): El técnico presiona "Iniciar Trabajo".
+Cierre (Técnico Asignado): Rellena un formulario de cierre que obliga a adjuntar una Foto de Respaldo y seleccionar un Diagnóstico de Falla de una lista.
+3.4. Desbloqueo Automático de Máquina:
+Al cerrar un ticket, el sistema desbloquea automáticamente la interfaz del operador en la tablet correspondiente.
+Sección 4: Panel de Administración (Acceso Web)
+4.1. Gestión de Entidades:
+CRUD para Máquinas, Productos, Causas de Parada (con el switch "Requiere mantenimiento") y Diagnósticos de Falla.
+Biblioteca de Documentos por Máquina: Sección para cargar y categorizar archivos para cada máquina.
+4.2. Gestión de Usuarios y Roles:
+Roles: Operador, Técnico de Mantenimiento, Jefe de Mantenimiento y Supervisor (este último puede desbloquear máquinas manualmente con un PIN, dejando un registro de auditoría).
+El perfil de usuario debe incluir un campo para número de teléfono (para webhooks).
+Sección 5: API y Notificaciones Externas (Webhooks)
+Este sistema es complementario a las notificaciones push de la PWA y sirve para integrarse con sistemas externos como Make.com.
+5.1. Configuración de Webhooks:
+Sección en el panel de admin para configurar las URLs de los webhooks.
+5.2. Evento 1: Creación de Ticket (on_ticket_created)
+Payload (JSON): Incluirá ticketId, machineName, reportedCause, creationTime, ticketUrl.
+5.3. Evento 2: Asignación de Ticket (on_ticket_assigned)
+Payload (JSON): Incluirá ticketId, machineName, ticketUrl, y objetos para assignee (con nombre y teléfono) y assigner.
+Sección 6: Especificaciones de la Base de Datos
+Tablas Requeridas:
+Usuarios (con rol, telefono).
+Maquinas (con estado_operativo).
+Productos.
+Causas_Parada (con requiere_mantenimiento).
+Lotes_Produccion.
+Registros_Paradas (tabla de tickets con todos los timestamps, IDs de usuarios, campos de cierre como ruta_foto_cierre, id_diagnostico_falla, estado y prioridad).
+Documentos_Maquina.
+Diagnosticos.
+Log_Auditoria.
+Suscripciones_Push (para gestionar los endpoints de notificación de cada usuario/dispositivo).
