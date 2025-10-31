@@ -62,9 +62,8 @@ export default function OperatorView() {
 
     const unsubscribe = subscribe("ticket_closed", (message) => {
       if (message.machineId === configuredMachine) {
-        console.log(`[Operator] Ticket closed for machine ${configuredMachine}, machine unlocked`);
-        // Query invalidation already handled by handleWebSocketMessage
-        // Machine will automatically show as unblocked via query refetch
+        console.log(`[Operator] Ticket closed for machine ${configuredMachine}, machine is resumable`);
+        setIsResumable(true);
       }
     });
 
@@ -84,6 +83,7 @@ export default function OperatorView() {
   
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [isResumable, setIsResumable] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem(MACHINE_CONFIG_KEY);
@@ -169,6 +169,19 @@ export default function OperatorView() {
     onSuccess: (_, variables) => {
       const cause = causes?.find(c => c.id === variables.causeId);
       setSuccessMessage(`¡Parada registrada: ${cause?.name}!`);
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 2000);
+    },
+  });
+
+  const resumeProductionMutation = useMutation({
+    mutationFn: async (machineId: number) => {
+      return await apiRequest("POST", `/api/machines/${machineId}/resume`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/machines", configuredMachine] });
+      setIsResumable(false);
+      setSuccessMessage("¡Producción reanudada!");
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 2000);
     },
@@ -468,40 +481,51 @@ export default function OperatorView() {
                       No se puede reanudar la producción hasta que el mantenimiento sea completado
                     </p>
                   </div>
+                  <Button
+                    onClick={() => resumeProductionMutation.mutate(currentMachine.id)}
+                    disabled={!isResumable || resumeProductionMutation.isPending}
+                    size="lg"
+                    className="mt-4"
+                    data-testid="button-resume-production"
+                  >
+                    {resumeProductionMutation.isPending ? "Reanudando..." : "Reanudar"}
+                  </Button>
                 </div>
               </Card>
             )}
 
-            <div>
-              <h2 className="text-lg font-medium mb-4">Causas de Parada</h2>
-              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {causes?.map((cause) => (
-                  <Button
-                    key={cause.id}
-                    onClick={() => handleCauseClick(cause)}
-                    disabled={
-                      recordDowntimeMutation.isPending ||
-                      (cause.requiresMaintenance && currentMachine.operationalStatus === "Bloqueada")
-                    }
-                    className="h-36 flex flex-col items-center justify-center gap-3 text-lg font-medium hover-elevate active-elevate-2"
-                    style={{
-                      backgroundColor: cause.color,
-                      color: "#ffffff",
-                    }}
-                    data-testid={`button-cause-${cause.id}`}
-                  >
-                    <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
-                      {cause.requiresMaintenance ? (
-                        <Lock className="w-6 h-6" />
-                      ) : (
-                        <AlertCircle className="w-6 h-6" />
-                      )}
-                    </div>
-                    <span className="text-center leading-tight">{cause.name}</span>
-                  </Button>
-                ))}
+            {currentMachine.operationalStatus !== "Bloqueada" && (
+              <div>
+                <h2 className="text-lg font-medium mb-4">Causas de Parada</h2>
+                <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {causes?.map((cause) => (
+                    <Button
+                      key={cause.id}
+                      onClick={() => handleCauseClick(cause)}
+                      disabled={
+                        recordDowntimeMutation.isPending ||
+                        (cause.requiresMaintenance && currentMachine.operationalStatus === "Bloqueada")
+                      }
+                      className="h-36 flex flex-col items-center justify-center gap-3 text-lg font-medium hover-elevate active-elevate-2"
+                      style={{
+                        backgroundColor: cause.color,
+                        color: "#ffffff",
+                      }}
+                      data-testid={`button-cause-${cause.id}`}
+                    >
+                      <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                        {cause.requiresMaintenance ? (
+                          <Lock className="w-6 h-6" />
+                        ) : (
+                          <AlertCircle className="w-6 h-6" />
+                        )}
+                      </div>
+                      <span className="text-center leading-tight">{cause.name}</span>
+                    </Button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </>
         )}
       </div>

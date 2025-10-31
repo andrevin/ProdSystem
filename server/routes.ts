@@ -363,6 +363,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/machines/:id/resume", requireAuth, async (req, res) => {
+    try {
+      const machineId = parseInt(req.params.id);
+      const machine = await storage.resumeMachine(machineId);
+      if (!machine) {
+        return res.status(404).json({ error: "Machine not found" });
+      }
+      res.json(machine);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to resume machine";
+      res.status(500).json({ error: message });
+    }
+  });
+
   // Products endpoints
   app.get("/api/products", async (req, res) => {
     try {
