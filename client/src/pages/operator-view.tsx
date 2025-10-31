@@ -92,6 +92,12 @@ export default function OperatorView() {
     }
   }, []);
 
+  useEffect(() => {
+    if (currentMachine?.operationalStatus === "Bloqueada") {
+      setIsResumable(false);
+    }
+  }, [currentMachine?.operationalStatus]);
+
   const { data: machines } = useQuery<Machine[]>({
     queryKey: ["/api/machines"],
   });
