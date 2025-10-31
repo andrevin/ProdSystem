@@ -186,6 +186,10 @@ export default function OperatorView() {
       setSuccessMessage(`¡Parada registrada: ${cause?.name}!`);
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 2000);
+
+      // Invalidate machine queries to refetch status
+      // The backend will set status to "Bloqueada" or "Parada"
+      queryClient.invalidateQueries({ queryKey: ["/api/machines"] });
     },
   });
 
@@ -507,7 +511,7 @@ export default function OperatorView() {
             )}
 
             {currentMachine.operationalStatus === "Parada" && (
-              <Card className="p-8 bg-yellow-500/10 border-yellow-500">
+              <Card className="p-8 bg-yellow-100 border-yellow-500">
                 <div className="text-center space-y-4">
                   <AlertCircle className="w-16 h-16 mx-auto text-yellow-500" />
                   <div>
@@ -522,10 +526,10 @@ export default function OperatorView() {
                     onClick={() => resumeProductionMutation.mutate(currentMachine.id)}
                     disabled={resumeProductionMutation.isPending}
                     size="lg"
-                    className="mt-4"
-                    data-testid="button-resume-production"
+                    className="mt-4 bg-yellow-500 hover:bg-yellow-600 text-white"
+                    data-testid="button-resume-production-parada"
                   >
-                    {resumeProductionMutation.isPending ? "Reanudando..." : "Reanudar"}
+                    {resumeProductionMutation.isPending ? "Reanudando..." : "Reanudar Producción"}
                   </Button>
                 </div>
               </Card>
