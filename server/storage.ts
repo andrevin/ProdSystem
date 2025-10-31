@@ -51,6 +51,7 @@ export interface IStorage {
   updateMachine(id: number, machine: Partial<InsertMachine>): Promise<Machine | undefined>;
   deleteMachine(id: number): Promise<void>;
   unlockMachine(machineId: number): Promise<Machine | undefined>;
+  resumeMachine(machineId: number): Promise<Machine | undefined>;
 
   // Products
   getProducts(): Promise<Product[]>;
@@ -179,6 +180,17 @@ export class DatabaseStorage implements IStorage {
       return undefined;
     }
     
+    return await this.updateMachine(machineId, {
+      operationalStatus: "Operativa",
+    });
+  }
+
+  async resumeMachine(machineId: number): Promise<Machine | undefined> {
+    const machine = await this.getMachine(machineId);
+    if (!machine) {
+      return undefined;
+    }
+
     return await this.updateMachine(machineId, {
       operationalStatus: "Operativa",
     });
