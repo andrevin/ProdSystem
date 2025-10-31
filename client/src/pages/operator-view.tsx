@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -84,6 +84,7 @@ export default function OperatorView() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [isResumable, setIsResumable] = useState(false);
+  const prevStatusRef = useRef<string | undefined>();
 
   useEffect(() => {
     const saved = localStorage.getItem(MACHINE_CONFIG_KEY);
@@ -91,12 +92,6 @@ export default function OperatorView() {
       setConfiguredMachine(parseInt(saved));
     }
   }, []);
-
-  useEffect(() => {
-    if (currentMachine?.operationalStatus === "Bloqueada") {
-      setIsResumable(false);
-    }
-  }, [currentMachine?.operationalStatus]);
 
   const { data: machines } = useQuery<Machine[]>({
     queryKey: ["/api/machines"],
@@ -137,6 +132,20 @@ export default function OperatorView() {
     enabled: !!configuredMachine,
     retry: false,
   });
+
+  const currentMachine = machines?.find(m => m.id === configuredMachine);
+  const currentProduct = products?.find(p => p.id === activeBatch?.productId);
+
+  useEffect(() => {
+    const currentStatus = currentMachine?.operationalStatus;
+    if (
+      currentStatus === "Bloqueada" &&
+      prevStatusRef.current !== "Bloqueada"
+    ) {
+      setIsResumable(false);
+    }
+    prevStatusRef.current = currentStatus;
+  }, [currentMachine?.operationalStatus]);
 
   const startBatchMutation = useMutation({
     mutationFn: async (data: { machineId: number; productId: number; plannedQuantity: number; operatorId?: number }) => {
@@ -240,9 +249,6 @@ export default function OperatorView() {
       batchId: activeBatch?.id,
     });
   };
-
-  const currentMachine = machines?.find(m => m.id === configuredMachine);
-  const currentProduct = products?.find(p => p.id === activeBatch?.productId);
 
   if (!configuredMachine || !currentMachine) {
     return (
