@@ -194,7 +194,7 @@ export default function OperatorView() {
       return await apiRequest("POST", `/api/machines/${machineId}/resume`, {});
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/machines", configuredMachine] });
+      queryClient.invalidateQueries({ queryKey: ["/api/machines"] });
       setIsResumable(false);
       setSuccessMessage("¡Producción reanudada!");
       setShowSuccess(true);
