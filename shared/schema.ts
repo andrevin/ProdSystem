@@ -25,7 +25,7 @@ export const machines = pgTable("machines", {
   name: text("name").notNull().unique(),
   description: text("description"),
   section: varchar("section", { length: 100 }), // Section/Area of the plant
-  operationalStatus: text("operational_status").notNull().default("Operativa"), // 'Operativa', 'Bloqueada'
+  operationalStatus: text("operational_status").notNull().default("Operativa"), // 'Operativa', 'Parada', 'Bloqueada'
 });
 
 export const insertMachineSchema = createInsertSchema(machines).omit({ id: true });
