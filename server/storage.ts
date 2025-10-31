@@ -373,6 +373,10 @@ export class DatabaseStorage implements IStorage {
       await this.updateMachine(insertRecord.machineId, {
         operationalStatus: "Bloqueada",
       });
+    } else {
+      await this.updateMachine(insertRecord.machineId, {
+        operationalStatus: "Parada",
+      });
     }
     
     return record;
@@ -450,13 +454,6 @@ export class DatabaseStorage implements IStorage {
       .where(eq(downtimeRecords.id, id))
       .returning();
     
-    // Automatically unblock machine when ticket is closed
-    if (record && existingRecord.requiresMaintenance) {
-      await this.updateMachine(existingRecord.machineId, {
-        operationalStatus: "Operativa",
-      });
-    }
-
     return record || undefined;
   }
 

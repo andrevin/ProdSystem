@@ -506,7 +506,32 @@ export default function OperatorView() {
               </Card>
             )}
 
-            {currentMachine.operationalStatus !== "Bloqueada" && (
+            {currentMachine.operationalStatus === "Parada" && (
+              <Card className="p-8 bg-yellow-500/10 border-yellow-500">
+                <div className="text-center space-y-4">
+                  <AlertCircle className="w-16 h-16 mx-auto text-yellow-500" />
+                  <div>
+                    <h3 className="text-xl font-bold text-yellow-500 mb-2">
+                      MÁQUINA PARADA
+                    </h3>
+                    <p className="text-muted-foreground">
+                      La producción está actualmente parada.
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => resumeProductionMutation.mutate(currentMachine.id)}
+                    disabled={resumeProductionMutation.isPending}
+                    size="lg"
+                    className="mt-4"
+                    data-testid="button-resume-production"
+                  >
+                    {resumeProductionMutation.isPending ? "Reanudando..." : "Reanudar"}
+                  </Button>
+                </div>
+              </Card>
+            )}
+
+            {currentMachine.operationalStatus === "Operativa" && (
               <div>
                 <h2 className="text-lg font-medium mb-4">Causas de Parada</h2>
                 <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
